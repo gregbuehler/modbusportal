@@ -23,7 +23,24 @@ int rc;
 struct termios termOptions;
 int ttyFid;
 
+int data[10];
+
 void setup()
+{
+	// initialize data registers
+	data[0] = 0;
+	data[1] = 1;
+	data[2] = 2;
+	data[3] = 3;
+	data[4] = 4;
+	data[5] = 5;
+	data[6] = 6;
+	data[7] = 7;
+	data[8] = 8;
+	data[9] = 9;
+}
+
+void updateMemoryTable()
 {
 }
 
@@ -45,6 +62,72 @@ void serialHandler()
 
     // Now set the term options (set immediately)
     tcsetattr( ttyFid, TCSANOW, &termOptions );
+	
+	//
+	// **************************************************************
+	//
+	byte bufferIndex = 0;
+    char buffer[25];
+
+    // read the position command from the serial port
+    // should look like:
+    //      D20BIX+00733Y+00080S99\r\n
+    //  
+    // and we need the X+00000 and Y+00000 parts
+    //
+    if (Serial.available() > 0)
+	{
+        while (Serial.available() > 0 && bufferIndex < 25)
+		{
+            buffer[bufferIndex] = Serial.read();
+
+            if (buffer[bufferIndex++] == '\n')
+			{
+                buffer[bufferIndex] = '\0';
+                break;
+            }
+        }
+
+        Serial.flush();
+
+		// check to see if we have good orientation on the buffer by
+		// checking for lines starting with model identifier 'D'
+		String input = String(buffer);
+
+		if (buffer[0] == 'D' && bufferIndex <=24)
+		{  
+			int x_result = data[1];
+			int y_result = data[4];
+			String check;
+			char token_buffer[8] = {'0', '0', '0', '0', '0', '0', '0', '0' };
+
+			// scan for x, target token is X+00000
+			String x_token = input.substring(5, 11);
+			check = x_token.substring(2, 6);
+			check.toCharArray(token_buffer, 8);
+
+			x_result = atoi(token_buffer);
+			if (x_token[1] == '-')
+			{
+				x_result *= -1;
+			}
+
+			// scan for y, target token is Y+00000
+			String y_token = input.substring(12, 18);
+			check = y_token.substring(2, 6);
+			check.toCharArray(token_buffer, 8);
+
+			y_result = atoi(token_buffer);
+			if (y_token[1] == '-')
+			{
+				y_result *= -1;
+			}
+
+			// finalize results
+			data[1] = x_result;
+			data[4] = y_result;
+		}
+	}
 }
 
 void modbusHandler()
@@ -85,8 +168,10 @@ int main(int argc, char *argv[])
     setup();
 
     for(;;) {
-        modbusHandler();
         serialHandler();
+		modbusHandler();
+		
+		updateMemoryTable();
     }
 
     // something has gone terribly wrong. release resources and reset the system
