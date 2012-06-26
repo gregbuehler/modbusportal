@@ -42,6 +42,11 @@ void setup()
 
 void updateMemoryTable()
 {
+	int i;
+	for (int i; i <= 9; i++)
+	{
+		mb_mapping.tab_holding_registers[i] = data[i];
+	}
 }
 
 void serialHandler()
@@ -138,8 +143,10 @@ void modbusHandler()
         socket = modbus_tcp_listen(ctx, 1);
         modbus_tcp_accept(ctx, &socket);
         
-        mb_mapping = modbus_mapping_new(MODBUS_MAX_READ_BITS, 0,
-                                    MODBUS_MAX_READ_REGISTERS, 0);
+        mb_mapping = modbus_mapping_new(NULL, 						// no coils
+										NULL,						// no coils
+										MODBUS_MAX_READ_REGISTERS, 	// holding reg
+										NULL);						// no ir's
                                     
         if (mb_mapping == NULL) {
             \\fprintf(stderr, "Failed to allocate the mapping: %s\n", modbus_strerror(errno));
